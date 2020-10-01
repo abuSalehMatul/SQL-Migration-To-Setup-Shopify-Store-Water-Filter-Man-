@@ -69,6 +69,27 @@ return [
             'visibility' => 'public',
         ],
 
+        'connect' => [
+            'driver' => 'local',
+            'root' => storage_path('app/connect'),
+            'url' => env('APP_URL').'/storage',
+            'visibility' => 'public',
+        ],
+
+        'customer' => [
+            'driver' => 'local',
+            'root' => storage_path('app/customer'),
+            'url' => env('APP_URL').'/storage',
+            'visibility' => 'public',
+        ],
+
+        'monthCustomVariant' => [
+            'driver' => 'local',
+            'root' => storage_path('app/monthCustomVariant'),
+            'url' => env('APP_URL').'/storage',
+            'visibility' => 'public',
+        ],
+
         'customVariant' => [
             'driver' => 'local',
             'root' => storage_path('app/customVariant'),

@@ -53,15 +53,15 @@ class CollectionController extends Controller
         return "hoise ";
         $token = Token::first();
         $collections = ShopifyCollection::where('status_upload', 0)->get();
-        $server = "https://stickybar.aivalabs.com";
+        $server = "https://stickybar.aivalabs.com/sql_images";
         $i = 0;
         foreach ($collections as $collection) {
-            
-            $src = $server . '/sql_migrate_pictures/category/' . $collection->images;
+
+            $src = $server . '/category/' . $collection->images;
             $header_response = get_headers($src, 1);
-            $key = $collection->parent_id == 0 ? "parent_collection_key_{$collection->parent_id}": "child_collection";
-            $metaValue = $collection->parent_id == 0 ? "parent": "child_of_{$collection->parent_id}_collection";
-            if (strpos($header_response[0], "404") !== false || $collection->images == null ) {
+            $key = $collection->parent_id == 0 ? "parent_collection_key_{$collection->parent_id}" : "child_collection";
+            $metaValue = $collection->parent_id == 0 ? "parent" : "child_of_{$collection->parent_id}_collection";
+            if (strpos($header_response[0], "404") !== false || $collection->images == null) {
                 $data = [
                     "custom_collection" => [
                         "title" => $collection->title,
@@ -72,7 +72,7 @@ class CollectionController extends Controller
                         "sort_order" => "manual",
                         "metafields" => [
                             [
-                                "key" => $key ,
+                                "key" => $key,
                                 "value" => $metaValue,
                                 "value_type" => "string",
                                 "namespace" => "global"
@@ -91,52 +91,111 @@ class CollectionController extends Controller
                         "sort_order" => "manual",
                         "metafields" => [
                             [
-                                "key" => $key ,
+                                "key" => $key,
                                 "value" => $metaValue,
                                 "value_type" => "string",
                                 "namespace" => "global"
                             ]
                         ],
                         "image" => [
-                            "src" => $server . '/sql_migrate_pictures/category/' . $collection->images,
+                            "src" => $server . '/category/' . $collection->images,
                             "alt" => $collection->title
                         ]
                     ]
                 ];
             }
-            $data = json_encode($data);
-            $url = "https://water-filter-men.myshopify.com/admin/api/2020-10/custom_collections.json";
-            $crl = curl_init();
-            curl_setopt($crl, CURLOPT_URL, $url);
-            curl_setopt($crl, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "X-Shopify-Access-Token: " . $token->access_token));
-            curl_setopt($crl, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($crl, CURLOPT_VERBOSE, 0);
-            curl_setopt($crl, CURLOPT_HEADER, 1);
-            curl_setopt($crl, CURLOPT_CUSTOMREQUEST, "POST");
-            curl_setopt($crl, CURLOPT_POSTFIELDS, $data);
-            curl_setopt($crl, CURLOPT_SSL_VERIFYPEER, false);
-            $response = curl_exec($crl);
+            if($collection->status_upload != 1){
+                $data = json_encode($data);
+                $url = "https://water-filter-men.myshopify.com/admin/api/2020-10/custom_collections.json";
+                $crl = curl_init();
+                curl_setopt($crl, CURLOPT_URL, $url);
+                curl_setopt($crl, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "X-Shopify-Access-Token: " . $token->access_token));
+                curl_setopt($crl, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($crl, CURLOPT_VERBOSE, 0);
+                curl_setopt($crl, CURLOPT_HEADER, 1);
+                curl_setopt($crl, CURLOPT_CUSTOMREQUEST, "POST");
+                curl_setopt($crl, CURLOPT_POSTFIELDS, $data);
+                curl_setopt($crl, CURLOPT_SSL_VERIFYPEER, false);
+                $response = curl_exec($crl);
+    
+                $header_size = curl_getinfo($crl, CURLINFO_HEADER_SIZE);
+                $header = substr($response, 0, $header_size);
+                $body = substr($response, $header_size);
+                curl_close($crl);
+    
+                $output = new \Symfony\Component\Console\Output\ConsoleOutput();
+                $output->writeln($body);
+    
+    
+    
+                $body = json_decode($body);
+                 // print_r($body);
+                //  print_r($data);
+                $fileName = "database_product_" . $collection->id . "_collection_id_" . $body->custom_collection->id . ".json";
+                $value = json_encode(($body), JSON_PRETTY_PRINT);
+                Storage::disk('collection')->put($fileName, $value);
+    
+                $collection->status_upload = 1;
+                $collection->shopify_collection_id = $body->custom_collection->id;
+                $collection->save();
+            }
+            
+        }
+    }
 
-            $header_size = curl_getinfo($crl, CURLINFO_HEADER_SIZE);
-            $header = substr($response, 0, $header_size);
-            $body = substr($response, $header_size);
-            curl_close($crl);
+    public function upConnect()
+    {
+        $token = Token::first();
+        $productToCategories = DB::table('ecom_product_to_category')->get();
+       return $productToCategories->count();
+      $i=0;
+        foreach ($productToCategories as $item) {
+            $product = shopifyProduct::where('product_code', $item->product_id)->first();
+            $collection = ShopifyCollection::where('category_id', $item->category_id)->first();
+                $i++;
+            if ($product != null && $collection != null) {
+               
+                if($product->shopify_id != null){
+                    print_r($i);
+                    $data = [
+                        "collect" => [
+                            "product_id" =>  $product->shopify_id,
+                            "collection_id" =>  $collection->shopify_collection_id
+                        ]
+    
+                    ];
+                    $data = json_encode($data);
+                    $url = "https://water-filter-men.myshopify.com/admin/api/2020-07/collects.json";
+                    $crl = curl_init();
+                    curl_setopt($crl, CURLOPT_URL, $url);
+                    curl_setopt($crl, CURLOPT_HTTPHEADER, array("Content-Type: application/json", "X-Shopify-Access-Token: " . $token->access_token));
+                    curl_setopt($crl, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($crl, CURLOPT_VERBOSE, 0);
+                    curl_setopt($crl, CURLOPT_HEADER, 1);
+                    curl_setopt($crl, CURLOPT_CUSTOMREQUEST, "POST");
+                    curl_setopt($crl, CURLOPT_POSTFIELDS, $data);
+                    curl_setopt($crl, CURLOPT_SSL_VERIFYPEER, false);
+                    $response = curl_exec($crl);
+    
+                    $header_size = curl_getinfo($crl, CURLINFO_HEADER_SIZE);
+                    $header = substr($response, 0, $header_size);
+                    $body = substr($response, $header_size);
+                    curl_close($crl);
 
-            $output = new \Symfony\Component\Console\Output\ConsoleOutput();
-            $output->writeln($body);
+                    $output = new \Symfony\Component\Console\Output\ConsoleOutput();
+                    $output->writeln($body);
 
+                    $body = json_decode($body);
 
+                    // $fileName = "database_product_" . $collection->id . "_collection_id_" . $body->collect->id . ".json";
+                    // $value = json_encode(($body), JSON_PRETTY_PRINT);
+                    // Storage::disk('connect')->put($fileName, $value);
 
-            $body = json_decode($body);
-            //  print_r($body);
-            //  print_r($data);
-            $fileName = "database_product_" . $collection->id . "_collection_id_" . $body->custom_collection->id . ".json";
-            $value = json_encode(($body), JSON_PRETTY_PRINT);
-            Storage::disk('collection')->put($fileName, $value);
-
-            $collection->status_upload = 1;
-            $collection->shopify_collection_id = $body->custom_collection->id;
-            $collection->save();
+                    // $collection->status_upload = 2;
+                    // $collection->save();
+                }
+                
+            }
         }
     }
 
@@ -150,10 +209,10 @@ class CollectionController extends Controller
     {
         return "noo";
         $catPros = DB::table('ecom_product_to_category')->get();
-        foreach($catPros as $catPro){
+        foreach ($catPros as $catPro) {
             $shopifyCollection = ShopifyCollection::find($catPro->category_id);
-            $shopifyProduct = shopifyProduct::where('product_code',$catPro->product_id)->first();
-            if($shopifyCollection != null && $shopifyProduct != null){
+            $shopifyProduct = shopifyProduct::where('product_code', $catPro->product_id)->first();
+            if ($shopifyCollection != null && $shopifyProduct != null) {
                 $connect = new ShopifyConnect();
                 $connect->category_id = $catPro->category_id;
                 $connect->product_id = $catPro->product_id;
@@ -169,6 +228,4 @@ class CollectionController extends Controller
         return "kn";
         DB::table('shopify_connects')->truncate();
     }
-
-
 }

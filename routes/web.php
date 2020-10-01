@@ -46,3 +46,11 @@ Route::get('status-to-zero', 'ProductController@setProductStatusZero');
 Route::get('up-image', 'ProductController@setImage');
 Route::get('up-variant-image', 'ProductController@setImageForCustomVariant');
 
+Route::get('up-connect', "CollectionController@upConnect");
+
+Route::get('set-customer', 'CustomerController@setCustomer');
+
+Route::get('up-customer', 'CustomerController@upCustomer');
+
+
+Route::get('test', "ProductController@test");
