@@ -147,7 +147,7 @@ class CollectionController extends Controller
     {
         $token = Token::first();
         $productToCategories = DB::table('ecom_product_to_category')->get();
-       return $productToCategories->count();
+     //  return $productToCategories->count();
       $i=0;
         foreach ($productToCategories as $item) {
             $product = shopifyProduct::where('product_code', $item->product_id)->first();
@@ -156,7 +156,7 @@ class CollectionController extends Controller
             if ($product != null && $collection != null) {
                
                 if($product->shopify_id != null){
-                    print_r($i);
+                  //  print_r($i);
                     $data = [
                         "collect" => [
                             "product_id" =>  $product->shopify_id,
@@ -184,8 +184,19 @@ class CollectionController extends Controller
 
                     $output = new \Symfony\Component\Console\Output\ConsoleOutput();
                     $output->writeln($body);
-
-                    $body = json_decode($body);
+                    $deBody = json_decode($body);
+                    if (property_exists($deBody, 'collect')) {
+                        $deBody = json_decode($body);
+                        $collection->status_upload = 2;
+                        $collection->save();
+                        $fileName = "database_product_" . $collection->id . "_collection_id_" . $deBody->collect->id . ".json";
+                        $value = json_encode(($body), JSON_PRETTY_PRINT);
+                        Storage::disk('connect')->put($fileName, $value);
+                    }
+                    if (property_exists($deBody, 'errors')) {
+                        $collection->body_html = json_encode($deBody->errors);
+                        $collection->save();
+                    }
 
                     // $fileName = "database_product_" . $collection->id . "_collection_id_" . $body->collect->id . ".json";
                     // $value = json_encode(($body), JSON_PRETTY_PRINT);

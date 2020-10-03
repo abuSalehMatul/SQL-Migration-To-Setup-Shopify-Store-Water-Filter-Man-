@@ -107,7 +107,7 @@ class ProductController extends Controller
 
     public function upProduct()
     {
-        return 'hi';
+       // return 'hi';
         $token = Token::first();
         $config = array(
             'ShopUrl' => 'water-filter-men.myshopify.com',
@@ -121,11 +121,13 @@ class ProductController extends Controller
             ->where('month12_price', 0)
             ->where('month12_rrp', 0)
             ->where('month6_price', 0)
+            ->where('price', ">", 0)
             ->get();
 
         $c = shopifyProduct::where('status', 0)
             ->where('month12_price', 0)
             ->where('month12_rrp', 0)
+            ->where('price', ">", 0)
             ->where('month6_price', 0)
             ->count();
 
@@ -198,7 +200,7 @@ class ProductController extends Controller
 
     public function setImageForCustomVariant()
     {
-        return "no";
+      //  return "no";
         $token = Token::first();
         $customVariants = DB::table('custom_variants')->get()->groupBy('product_id');
         $server = "https://stickybar.aivalabs.com/sql_images";
@@ -213,7 +215,18 @@ class ProductController extends Controller
                // return $variantInfo;
                 array_push($variantIds, $variantInfo[$i]->variant_id);
                 $imgArr = json_decode($variantInfo[$i]->image);
-                if ($imgArr[$i] != "no") {
+                if(sizeof($imgArr) == 0){
+                    if ($this->getImageSrc($product->images) != false) {
+                        $src = $this->getImageSrc($product->images);
+                            $data = [
+                                "image" => [
+                                    "variant_ids" => $variantIds,
+                                    'src' => $src
+                                ]
+                            ];
+                    }
+                }
+                elseif ($imgArr[$i] != "no") {
                     if ($this->getImageSrc($imgArr[$i]) != false) {
                         $src = $this->getImageSrc($imgArr[$i]);
                         $data = [
@@ -329,7 +342,7 @@ class ProductController extends Controller
 
     public function setImage()
     {
-          return "no";
+        //  return "no";
 
         $products = shopifyProduct::where('status', 1)->where('image_upload', 0)->get();
         $server = "https://stickybar.aivalabs.com/sql_images";
@@ -421,7 +434,7 @@ class ProductController extends Controller
 
     public function deleteCustomVariantRec()
     {
-        return "hove na";
+       // return "hove na";
         // $products = shopifyProduct::get();
         DB::table('custom_variants')->truncate();
     }
@@ -457,7 +470,7 @@ class ProductController extends Controller
 
     public function upMonthBasedVariant()
     {
-         return "hi";
+        // return "hi";
         $token = Token::first();
         $config = array(
             'ShopUrl' => 'water-filter-men.myshopify.com',
@@ -469,17 +482,16 @@ class ProductController extends Controller
 
         $products = shopifyProduct::where('status', 0)
             ->where('month12_price', '>', 0)
-            ->where('month12_rrp', '>', 0)
             ->where('month6_price', '>', 0)
-            ->where('rrp', '>', 0)->get();
+            ->where('price', '>', 0)
+            ->get();
         for ($i = 0; $i < $products->count(); $i++) {
             $options = [];
             $ex = "go";
             $variantArr = [];
             $imageArr = [];
             $attrs = DB::table('ecom_product_attributes')->where('product_id', $products[$i]->product_code)->get();
-            // print_r(sizeof($attrs));
-            // continue;
+           
             if (sizeof($attrs) > 0 && DB::table('ecom_attributes')->where('id', $attrs[0]->attribute)->first() != null) {
                 // return $attrs;
                 $attribute = DB::table('ecom_attributes')->where('id', $attrs[0]->attribute)->first();
@@ -498,6 +510,7 @@ class ProductController extends Controller
                     "values" => []
                 ];
                 array_push($options, $exoptions);
+                $j=0;
                 foreach ($attrs as $attr) {
                     $attributeValue = DB::table('ecom_attributes_values')->where('id', $attr->attribute_value)->first();
                     if ($attributeValue) {
@@ -528,7 +541,7 @@ class ProductController extends Controller
                     $price12 = $products[$i]->month12_price;
                     
                     // return $rrp;
-                    if ($rrp == "" || $attributeValue == "") {
+                    if ($attributeValue == "") {
                     } else {
                         $variantArr[] = [
                             "option1" => "6 Months",
@@ -554,7 +567,13 @@ class ProductController extends Controller
                             "sku" => "#" . $products[$i]->title . "#_" . rand(0, 234),
                             "taxable" => true
                         ];
-
+                        if($rrp == "" || $rrp == 0){
+                           unset($variantArr[$j]['compare_at_price']);
+                        }
+                        if($rrp12 == "" || $rrp12 == 0){
+                            unset($variantArr[$j+1]['compare_at_price']);
+                         }
+                        $j = $j + 2;
                         if ($attr->images) {
                             array_push($imageArr, $attr->images);
                         } else {
@@ -623,13 +642,13 @@ class ProductController extends Controller
 
     public function upOnlyMonthBasedVariant($token, $shopify)
     {
-         return "hi";
+       //  return "hi";
 
         $products = shopifyProduct::where('status', 0)
             ->where('month12_price', '>', 0)
-            ->where('month12_rrp', '>', 0)
             ->where('month6_price', '>', 0)
-            ->where('rrp', '>', 0)->get();
+            ->where('price', '>', 0)
+            ->get();
         for ($i = 0; $i < $products->count(); $i++) {
             $variantArr = [];
             $variantArr[] = [
@@ -654,6 +673,13 @@ class ProductController extends Controller
                 "sku" => "#" . $products[$i]->title . "#_" . rand(0, 234),
                 "taxable" => true
             ];
+
+            if($products[$i]->rrp == 0 || $products[$i]->rrp == ""){
+                unset($variantArr[0]['compare_at_price']);
+            }
+            if($products[$i]->month12_rrp == 0 || $products[$i]->month12_rrp == ""){
+                unset($variantArr[1]['compare_at_price']);
+            }
 
             $product = array(
                 "title" => $this->removeSpecial($products[$i]->title),
@@ -721,7 +747,7 @@ class ProductController extends Controller
 
     public function upVariant()
     {
-         return "hoise";
+        // return "hoise";
         $token = Token::first();
         $config = array(
             'ShopUrl' => 'water-filter-men.myshopify.com',
@@ -737,7 +763,7 @@ class ProductController extends Controller
 
             $ex = "go";
             $product = shopifyProduct::where('product_code', $productId)->first();
-            if ($product->month6_price > 0 || $product->month12_rrp > 0 || $product->status == 1) {
+            if ($product->month6_price > 0 || $product->month12_price > 0  || $product->status == 1) {
             } else {
                 $variantArr = [];
                 $imageArr = [];
@@ -752,6 +778,7 @@ class ProductController extends Controller
                         ],
                     ];
 
+                    $j = 0;
                     foreach ($attrs as $attr) {
 
                         $attributeValue = DB::table('ecom_attributes_values')->where('id', $attr->attribute_value)->first();
@@ -780,7 +807,7 @@ class ProductController extends Controller
                             $price = $attr->price;
                         }
                         // return $rrp;
-                        if ($rrp == "" || $attributeValue == "") {
+                        if ($attributeValue == "" || $price == "") {
                         } else {
                             $variantArr[] = [
                                 "option1" => $this->removeSpecial($attributeValue->attribute_value),
@@ -794,6 +821,13 @@ class ProductController extends Controller
                                 "taxable" => true
                             ];
 
+                            if($rrp == 0 || $rrp == ""){
+                                unset($variantArr[$j]["compare_at_price"]);
+                            }
+                            // if($price == 0 || $price == ""){
+                            //     unset($variantArr[$j]["price"]);
+                            // }
+                            $j++;
                             if ($attr->images) {
                                 array_push($imageArr, $attr->images);
                             } else {
@@ -868,7 +902,7 @@ class ProductController extends Controller
 
     public function delShopifyProduct()
     {
-        return "dur";
+          return "dur";
         $token = Token::first();
         $products = shopifyProduct::get();
         foreach ($products as $product) {

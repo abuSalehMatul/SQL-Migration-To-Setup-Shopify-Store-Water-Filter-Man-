@@ -89,26 +89,36 @@ class CustomerController extends Controller
     public function upCustomer()
     {
         $token = Token::first();
-        $customers = ShopifyCustomer::where('status_update', 0)->whereNotNull('email')->get();
-        for ($i = 0; $i < 30; $i++) {
+        $customers = ShopifyCustomer::where('status_update', -10)->whereNotNull('email')->get();
+       // return $customers;
+        for ($i = 0; $i < 4500; $i++) {
             $addresses = [];
             $customerAddressess = json_decode($customers[$i]->addresses);
             if (sizeof($customerAddressess) > 0) {
                 for ($j = 0; $j < sizeof($customerAddressess); $j++) {
                     $country = DB::table('ecom_country_description')->where('country_id', $customerAddressess[$j]->country_id)->first();
+                    //for special ..
+                    $p = "";
+                    if (strlen($customerAddressess[$j]->phone) == 11) {
+                            $out = preg_replace('/^\+/', '+44', $customerAddressess[$j]->phone);
+                            $p =  $out;
+                           // $customerAddressess[$j]->save();
+                    }
+                    ///.......
                     $addresses[] = [
                         "address1" => $customerAddressess[$j]->address_1,
                         "city" => $customerAddressess[$j]->city,
-                        "phone" => $customerAddressess[$j]->phone,
+                      //  "phone" => $customerAddressess[$j]->phone,
+                       // "phone" => $p == "" ?$customerAddressess[$j]->phone : $p,
                         "zip" => $customerAddressess[$j]->postcode,
                         "last_name" => $customerAddressess[$j]->lastname,
                         "first_name" => $customerAddressess[$j]->firstname,
                         "country" => optional($country)->name == "UK" ? "United Kingdom" : optional($country)->name
                     ];
-                    if ($customerAddressess[$j]->phone == null) {
+                    if ($customerAddressess[$j]->phone == null || strlen($customerAddressess[$j]->phone) < 8) {
                         unset($addresses[$j]['phone']);
                     }
-                    if ($country == null) {
+                    if ($country == null || $country->name == "REST OF THE WORLD") {
                         unset($addresses[$j]['country']);
                     }
                 }
@@ -117,13 +127,21 @@ class CustomerController extends Controller
             if (strlen($customers[$i]->password) < 7) {
                 $password = "AA#" . rand(0, 8) . "aa";
             }
-
+ //for special ..
+ $p = "";
+ if (strlen($customers[$i]->phone) == 11) {
+    $out = preg_replace('/^\+/', '+44', $customers[$i]->phone);
+    $p =  $out;
+   // $customerAddressess[$j]->save();
+}
+///.......
             $data = [
                 "customer" => [
                     "first_name" => $customers[$i]->first_name,
                     "last_name" => $customers[$i]->last_name,
                     "email" => $customers[$i]->email,
-                    "phone" => $customers[$i]->phone,
+                    // "phone" => $customers[$i]->phone,
+                   // "phone" => $p == "" ? $customers[$i]->phone: $p,
                     "tags" =>  $customers[$i]->tag,
                     "verified_email" => true,
                     "accepts_marketing" => true,
@@ -134,6 +152,10 @@ class CustomerController extends Controller
                     "send_email_welcome" => false
                 ]
             ];
+            // return $data;
+            if($customers[$i]->phone == "" || strlen($customers[$i]->phone) < 8){
+                unset($data['customer']['phone']);
+            }
 
             if (sizeof($addresses) == 0) {
                 unset($data['customer']['addresses']);
@@ -173,9 +195,10 @@ class CustomerController extends Controller
             }
             if (property_exists($deBody, 'errors')) {
                 $customers[$i]->shopify_id = json_encode($deBody->errors);
+                $customers[$i]->status_update = -10;
                 $customers[$i]->save();
             }
-
+          //  return $body;
 
            
         }
